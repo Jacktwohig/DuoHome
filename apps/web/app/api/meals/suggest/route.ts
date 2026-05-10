@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ suggestions });
   } catch (error) {
-    console.error("Meal suggestion error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Meal suggestion error:", message);
     return NextResponse.json(
-      { error: "Failed to generate meal suggestions" },
+      { error: message },
       { status: 500 }
     );
   }
