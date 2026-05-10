@@ -14,7 +14,6 @@ import {
   FileText,
   MapPin,
   Settings,
-  Heart,
   CreditCard,
   LogOut,
   ChevronRight,
@@ -133,7 +132,14 @@ export function Sidebar({
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-[#E7E5E4]">
         <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary-500">
-          <Heart className="h-4 w-4 text-white fill-white" />
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* House shape */}
+            <path d="M3 10.5L12 3L21 10.5V21H15V16H9V21H3V10.5Z" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+            {/* Left heart */}
+            <path d="M8.5 12.2C8.5 11.6 9 11 9.5 11.4C10 11 10.5 11.6 10.5 12.2C10.5 13.1 9.5 14 9.5 14C9.5 14 8.5 13.1 8.5 12.2Z" fill="white" />
+            {/* Right heart */}
+            <path d="M13.5 12.2C13.5 11.6 14 11 14.5 11.4C15 11 15.5 11.6 15.5 12.2C15.5 13.1 14.5 14 14.5 14C14.5 14 13.5 13.1 13.5 12.2Z" fill="white" />
+          </svg>
         </div>
         <span className="font-bold text-lg text-[#1C1917] tracking-tight">
           DuoHome
