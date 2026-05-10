@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/notes": "Notes & Documents",
   "/dashboard/activities": "Activities & Travel",
   "/dashboard/settings": "Settings",
+
 };
 
 export default function DashboardLayout({
