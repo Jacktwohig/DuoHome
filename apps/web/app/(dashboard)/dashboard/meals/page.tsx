@@ -240,6 +240,7 @@ export default function MealsPage() {
         }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
       setAiSuggestions(data.suggestions || []);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to get suggestions. Please try again.");
