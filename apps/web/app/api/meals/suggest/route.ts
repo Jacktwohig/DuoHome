@@ -18,9 +18,10 @@ export async function POST(request: NextRequest) {
       preferences = [],
       restrictions = [],
       existingMeals = [],
+      mealType = "dinner",
     } = body;
 
-    const suggestions = await suggestMeals(preferences, restrictions, existingMeals);
+    const suggestions = await suggestMeals(preferences, restrictions, existingMeals, mealType);
 
     return NextResponse.json({ suggestions });
   } catch (error) {

@@ -58,6 +58,7 @@ export default function ActivitiesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [newActivity, setNewActivity] = useState({
     title: "", description: "", activity_type: "date", start_date: "", end_date: "",
     location: "", cost: "", status: "wishlist", notes: "",
@@ -83,7 +84,9 @@ export default function ActivitiesPage() {
   }, []);
 
   async function addActivity() {
-    if (!newActivity.title.trim() || !householdId || !userId) return;
+    setSaveError(null);
+    if (!newActivity.title.trim()) { setSaveError("Title is required."); return; }
+    if (!householdId || !userId) { setSaveError("No household found. Please sign out and sign back in."); return; }
     setSaving(true);
     const supabase = createClient();
     const { data, error } = await supabase.from("activities").insert({
@@ -100,7 +103,8 @@ export default function ActivitiesPage() {
       notes: newActivity.notes || null,
     }).select().single();
     setSaving(false);
-    if (!error && data) {
+    if (error) { setSaveError(error.message); return; }
+    if (data) {
       setActivities((prev) => [...prev, data]);
       setNewActivity({ title: "", description: "", activity_type: "date", start_date: "", end_date: "", location: "", cost: "", status: "wishlist", notes: "" });
       setShowAddActivity(false);
@@ -284,7 +288,7 @@ export default function ActivitiesPage() {
         </div>
       )}
 
-      <Modal open={showAddActivity} onClose={() => setShowAddActivity(false)} title="Add Activity" size="lg">
+      <Modal open={showAddActivity} onClose={() => { setShowAddActivity(false); setSaveError(null); }} title="Add Activity" size="lg">
         <ModalBody className="space-y-4">
           <Input label="Title" placeholder="e.g. Weekend Trip to Asheville" value={newActivity.title} onChange={(e) => setNewActivity({ ...newActivity, title: e.target.value })} />
           <Textarea label="Description (optional)" placeholder="What's this activity about?" value={newActivity.description} onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })} />
@@ -301,7 +305,8 @@ export default function ActivitiesPage() {
           <Textarea label="Notes (optional)" placeholder="Things to remember, tips, etc." value={newActivity.notes} onChange={(e) => setNewActivity({ ...newActivity, notes: e.target.value })} />
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={() => setShowAddActivity(false)}>Cancel</Button>
+          {saveError && <p className="text-sm text-red-500 flex-1">{saveError}</p>}
+          <Button variant="outline" onClick={() => { setShowAddActivity(false); setSaveError(null); }}>Cancel</Button>
           <Button onClick={addActivity} loading={saving}>Add Activity</Button>
         </ModalFooter>
       </Modal>

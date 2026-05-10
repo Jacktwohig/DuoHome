@@ -153,8 +153,8 @@ export default function SettingsPage() {
     if (!subscription) return <Badge variant="secondary">Free Trial</Badge>;
     if (subscription.status === "active") return <Badge variant="success">Active</Badge>;
     if (subscription.status === "trialing") return <Badge variant="default">Trial</Badge>;
-    if (subscription.status === "canceled") return <Badge variant="destructive">Canceled</Badge>;
-    if (subscription.status === "past_due") return <Badge variant="destructive">Past Due</Badge>;
+    if (subscription.status === "canceled") return <Badge variant="error">Canceled</Badge>;
+    if (subscription.status === "past_due") return <Badge variant="error">Past Due</Badge>;
     return <Badge variant="secondary">{subscription.status}</Badge>;
   };
 

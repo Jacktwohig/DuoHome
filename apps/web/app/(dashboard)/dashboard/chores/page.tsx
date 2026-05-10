@@ -45,6 +45,7 @@ export default function ChoresPage() {
   const [loading, setLoading] = useState(true);
   const [showAddChore, setShowAddChore] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [newChore, setNewChore] = useState({ title: "", description: "", assignee: "", dueDate: "", recurrence: "none", priority: "medium" });
 
@@ -83,7 +84,9 @@ export default function ChoresPage() {
   }
 
   async function addChore() {
-    if (!newChore.title.trim() || !householdId || !userId) return;
+    setSaveError(null);
+    if (!newChore.title.trim()) { setSaveError("Chore name is required."); return; }
+    if (!householdId || !userId) { setSaveError("No household found. Please sign out and sign back in."); return; }
     setSaving(true);
     const supabase = createClient();
     const { data, error } = await supabase.from("chores").insert({
@@ -98,7 +101,8 @@ export default function ChoresPage() {
       is_completed: false,
     }).select().single();
     setSaving(false);
-    if (!error && data) {
+    if (error) { setSaveError(error.message); return; }
+    if (data) {
       setChores((prev) => [...prev, data]);
       setNewChore({ title: "", description: "", assignee: members[0]?.id || "", dueDate: "", recurrence: "none", priority: "medium" });
       setShowAddChore(false);
@@ -269,7 +273,7 @@ export default function ChoresPage() {
         )}
       </div>
 
-      <Modal open={showAddChore} onClose={() => setShowAddChore(false)} title="Add Chore" size="md">
+      <Modal open={showAddChore} onClose={() => { setShowAddChore(false); setSaveError(null); }} title="Add Chore" size="md">
         <ModalBody className="space-y-4">
           <Input label="Chore name" placeholder="e.g. Vacuum living room" value={newChore.title} onChange={(e) => setNewChore({ ...newChore, title: e.target.value })} />
           <Textarea label="Description (optional)" placeholder="Any extra details..." value={newChore.description} onChange={(e) => setNewChore({ ...newChore, description: e.target.value })} />
@@ -288,7 +292,8 @@ export default function ChoresPage() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={() => setShowAddChore(false)}>Cancel</Button>
+          {saveError && <p className="text-sm text-red-500 flex-1">{saveError}</p>}
+          <Button variant="outline" onClick={() => { setShowAddChore(false); setSaveError(null); }}>Cancel</Button>
           <Button onClick={addChore} loading={saving}>Add Chore</Button>
         </ModalFooter>
       </Modal>

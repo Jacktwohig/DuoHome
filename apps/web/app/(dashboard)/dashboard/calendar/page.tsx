@@ -23,6 +23,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<ViewMode>("month");
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [newEvent, setNewEvent] = useState({ title: "", date: format(new Date(), "yyyy-MM-dd"), time: "", color: "#6366F1", description: "", recurrence: "none" });
 
   useEffect(() => {
@@ -45,7 +46,9 @@ export default function CalendarPage() {
   }, []);
 
   async function addEvent() {
-    if (!newEvent.title.trim() || !newEvent.date || !householdId || !userId) return;
+    setSaveError(null);
+    if (!newEvent.title.trim()) { setSaveError("Event title is required."); return; }
+    if (!householdId || !userId) { setSaveError("No household found. Please sign out and sign back in."); return; }
     setSaving(true);
     const supabase = createClient();
     const startAt = newEvent.time ? `${newEvent.date}T${newEvent.time}:00` : `${newEvent.date}T00:00:00`;
@@ -59,7 +62,8 @@ export default function CalendarPage() {
       recurrence: newEvent.recurrence !== "none" ? newEvent.recurrence : null,
     }).select().single();
     setSaving(false);
-    if (!error && data) {
+    if (error) { setSaveError(error.message); return; }
+    if (data) {
       setEvents((prev) => [...prev, data].sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()));
       setNewEvent({ title: "", date: format(new Date(), "yyyy-MM-dd"), time: "", color: "#6366F1", description: "", recurrence: "none" });
       setShowAddEvent(false);
@@ -198,7 +202,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <Modal open={showAddEvent} onClose={() => setShowAddEvent(false)} title="Add Event" size="md">
+      <Modal open={showAddEvent} onClose={() => { setShowAddEvent(false); setSaveError(null); }} title="Add Event" size="md">
         <ModalBody className="space-y-4">
           <Input label="Event title" placeholder="e.g. Date Night" value={newEvent.title} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">
@@ -217,7 +221,8 @@ export default function CalendarPage() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={() => setShowAddEvent(false)}>Cancel</Button>
+          {saveError && <p className="text-sm text-red-500 flex-1">{saveError}</p>}
+          <Button variant="outline" onClick={() => { setShowAddEvent(false); setSaveError(null); }}>Cancel</Button>
           <Button onClick={addEvent} loading={saving}>Add Event</Button>
         </ModalFooter>
       </Modal>

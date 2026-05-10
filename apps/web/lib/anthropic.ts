@@ -8,31 +8,37 @@ const anthropic = new Anthropic({
 export async function suggestMeals(
   preferences: string[],
   restrictions: string[],
-  existingMeals: string[]
+  existingMeals: string[],
+  mealType: string = "dinner"
 ): Promise<MealSuggestion[]> {
-  const prompt = `You are a helpful meal planning assistant for a couple. Generate 6 diverse meal suggestions based on their preferences and dietary restrictions.
+  const typeLabel = mealType.charAt(0).toUpperCase() + mealType.slice(1);
+
+  const prompt = `You are a helpful meal planning assistant for a couple. Generate 6 diverse ${typeLabel} suggestions.
 
 Preferences: ${preferences.length > 0 ? preferences.join(", ") : "None specified"}
 Dietary restrictions: ${restrictions.length > 0 ? restrictions.join(", ") : "None"}
-Meals they already have this week: ${existingMeals.length > 0 ? existingMeals.join(", ") : "None yet"}
+Meals they already have: ${existingMeals.length > 0 ? existingMeals.join(", ") : "None yet"}
 
-Please suggest 6 varied meals that are different from what they already have. Include a mix of breakfast, lunch, and dinner options.
+Suggest 6 varied ${typeLabel.toLowerCase()} options that are different from what they already have.
 
-Respond ONLY with a valid JSON array in this exact format (no markdown, no explanation):
+Respond ONLY with a valid JSON array (no markdown, no explanation):
 [
   {
     "name": "Meal Name",
     "description": "Brief appetizing description in 1-2 sentences",
-    "ingredients": ["ingredient 1", "ingredient 2", "ingredient 3"],
-    "prep_time_minutes": 30,
+    "ingredients": ["1 cup ingredient", "2 tbsp ingredient"],
+    "instructions": ["Step 1: Do this first.", "Step 2: Then do this.", "Step 3: Serve and enjoy."],
+    "prep_time_minutes": 20,
     "tags": ["tag1", "tag2"],
-    "meal_type": "dinner",
+    "meal_type": "${mealType}",
     "servings": 2
   }
 ]
 
-meal_type must be one of: breakfast, lunch, dinner, snack
-Make the meals realistic, delicious, and varied. Tailor to the preferences and avoid all restrictions.`;
+meal_type must be exactly: "${mealType}"
+ingredients should include quantities (e.g. "2 cloves garlic")
+instructions should be 4-8 clear steps from prep to serving
+Make meals realistic, delicious, and varied. Tailor to preferences and avoid restrictions.`;
 
   const message = await anthropic.messages.create({
     model: "claude-opus-4-5",

@@ -34,6 +34,7 @@ export default function HabitsPage() {
   const [loading, setLoading] = useState(true);
   const [showAddHabit, setShowAddHabit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [newHabit, setNewHabit] = useState({ title: "", description: "", assignee: "", frequency: "daily", icon: "💪", color: "#06B6D4" });
 
   const today = format(new Date(), "yyyy-MM-dd");
@@ -105,7 +106,9 @@ export default function HabitsPage() {
   }
 
   async function addHabit() {
-    if (!newHabit.title.trim() || !householdId) return;
+    setSaveError(null);
+    if (!newHabit.title.trim()) { setSaveError("Habit name is required."); return; }
+    if (!householdId) { setSaveError("No household found. Please sign out and sign back in."); return; }
     setSaving(true);
     const supabase = createClient();
     const { data, error } = await supabase.from("habits").insert({
@@ -119,7 +122,8 @@ export default function HabitsPage() {
       target_count: 1,
     }).select().single();
     setSaving(false);
-    if (!error && data) {
+    if (error) { setSaveError(error.message); return; }
+    if (data) {
       setHabits((prev) => [...prev, data]);
       setNewHabit({ title: "", description: "", assignee: members[0]?.id || "", frequency: "daily", icon: "💪", color: "#06B6D4" });
       setShowAddHabit(false);
@@ -293,7 +297,7 @@ export default function HabitsPage() {
         </>
       )}
 
-      <Modal open={showAddHabit} onClose={() => setShowAddHabit(false)} title="New Habit" size="md">
+      <Modal open={showAddHabit} onClose={() => { setShowAddHabit(false); setSaveError(null); }} title="New Habit" size="md">
         <ModalBody className="space-y-4">
           <Input label="Habit name" placeholder="e.g. Morning workout" value={newHabit.title} onChange={(e) => setNewHabit({ ...newHabit, title: e.target.value })} />
           <Textarea label="Description (optional)" placeholder="Brief description..." value={newHabit.description} onChange={(e) => setNewHabit({ ...newHabit, description: e.target.value })} />
@@ -319,7 +323,8 @@ export default function HabitsPage() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={() => setShowAddHabit(false)}>Cancel</Button>
+          {saveError && <p className="text-sm text-red-500 flex-1">{saveError}</p>}
+          <Button variant="outline" onClick={() => { setShowAddHabit(false); setSaveError(null); }}>Cancel</Button>
           <Button onClick={addHabit} loading={saving}>Create Habit</Button>
         </ModalFooter>
       </Modal>

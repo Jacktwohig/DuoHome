@@ -243,6 +243,7 @@ export interface MealSuggestion {
   name: string;
   description: string;
   ingredients: string[];
+  instructions: string[];
   prep_time_minutes: number;
   tags: string[];
   meal_type: MealType;

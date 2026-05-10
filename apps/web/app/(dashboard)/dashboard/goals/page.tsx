@@ -41,6 +41,7 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState(true);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [addFundsAmount, setAddFundsAmount] = useState("");
   const [newGoal, setNewGoal] = useState({ title: "", description: "", category: "Finance", target_amount: "", target_date: "" });
@@ -66,7 +67,9 @@ export default function GoalsPage() {
   }, []);
 
   async function addGoal() {
-    if (!newGoal.title.trim() || !householdId || !userId) return;
+    setSaveError(null);
+    if (!newGoal.title.trim()) { setSaveError("Goal title is required."); return; }
+    if (!householdId || !userId) { setSaveError("No household found. Please sign out and sign back in."); return; }
     setSaving(true);
     const supabase = createClient();
     const { data, error } = await supabase.from("goals").insert({
@@ -81,7 +84,8 @@ export default function GoalsPage() {
       is_completed: false,
     }).select().single();
     setSaving(false);
-    if (!error && data) {
+    if (error) { setSaveError(error.message); return; }
+    if (data) {
       setGoals((prev) => [{ ...data, milestones: [] }, ...prev]);
       setNewGoal({ title: "", description: "", category: "Finance", target_amount: "", target_date: "" });
       setShowAddGoal(false);
@@ -284,7 +288,7 @@ export default function GoalsPage() {
         )}
       </AnimatePresence>
 
-      <Modal open={showAddGoal} onClose={() => setShowAddGoal(false)} title="New Goal" size="md">
+      <Modal open={showAddGoal} onClose={() => { setShowAddGoal(false); setSaveError(null); }} title="New Goal" size="md">
         <ModalBody className="space-y-4">
           <Input label="Goal title" placeholder="e.g. Europe Trip 2026" value={newGoal.title} onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })} />
           <Textarea label="Description (optional)" placeholder="What are you working towards?" value={newGoal.description} onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })} />
@@ -295,7 +299,8 @@ export default function GoalsPage() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={() => setShowAddGoal(false)}>Cancel</Button>
+          {saveError && <p className="text-sm text-red-500 flex-1">{saveError}</p>}
+          <Button variant="outline" onClick={() => { setShowAddGoal(false); setSaveError(null); }}>Cancel</Button>
           <Button onClick={addGoal} loading={saving}>Create Goal</Button>
         </ModalFooter>
       </Modal>

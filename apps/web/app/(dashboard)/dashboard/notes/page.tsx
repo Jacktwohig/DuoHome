@@ -33,6 +33,7 @@ export default function NotesPage() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [showAddNote, setShowAddNote] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [newNote, setNewNote] = useState({ title: "", content: "", tags: "" });
 
@@ -56,7 +57,9 @@ export default function NotesPage() {
   }, []);
 
   async function addNote() {
-    if (!newNote.title.trim() || !householdId || !userId) return;
+    setSaveError(null);
+    if (!newNote.title.trim()) { setSaveError("Title is required."); return; }
+    if (!householdId || !userId) { setSaveError("No household found. Please sign out and sign back in."); return; }
     setSaving(true);
     const supabase = createClient();
     const tags = newNote.tags ? newNote.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
@@ -72,7 +75,8 @@ export default function NotesPage() {
       updated_at: now,
     }).select().single();
     setSaving(false);
-    if (!error && data) {
+    if (error) { setSaveError(error.message); return; }
+    if (data) {
       setNotes((prev) => [data, ...prev]);
       setNewNote({ title: "", content: "", tags: "" });
       setShowAddNote(false);
@@ -183,14 +187,15 @@ export default function NotesPage() {
         </Modal>
       )}
 
-      <Modal open={showAddNote} onClose={() => setShowAddNote(false)} title="New Note" size="md">
+      <Modal open={showAddNote} onClose={() => { setShowAddNote(false); setSaveError(null); }} title="New Note" size="md">
         <ModalBody className="space-y-4">
           <Input label="Title" placeholder="Note title" value={newNote.title} onChange={(e) => setNewNote({ ...newNote, title: e.target.value })} />
           <Textarea label="Content" placeholder="Write your note here..." value={newNote.content} onChange={(e) => setNewNote({ ...newNote, content: e.target.value })} className="min-h-[160px]" />
           <Input label="Tags" placeholder="Home, Passwords, Medical (comma separated)" value={newNote.tags} onChange={(e) => setNewNote({ ...newNote, tags: e.target.value })} helperText="Separate multiple tags with commas" />
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={() => setShowAddNote(false)}>Cancel</Button>
+          {saveError && <p className="text-sm text-red-500 flex-1">{saveError}</p>}
+          <Button variant="outline" onClick={() => { setShowAddNote(false); setSaveError(null); }}>Cancel</Button>
           <Button onClick={addNote} loading={saving}>Save Note</Button>
         </ModalFooter>
       </Modal>
