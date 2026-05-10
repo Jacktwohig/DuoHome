@@ -13,13 +13,13 @@ export async function suggestMeals(
 ): Promise<MealSuggestion[]> {
   const typeLabel = mealType.charAt(0).toUpperCase() + mealType.slice(1);
 
-  const prompt = `You are a helpful meal planning assistant for a couple. Generate 6 diverse ${typeLabel} suggestions.
+  const prompt = `You are a helpful meal planning assistant for a couple. Generate 4 diverse ${typeLabel} suggestions.
 
 Preferences: ${preferences.length > 0 ? preferences.join(", ") : "None specified"}
 Dietary restrictions: ${restrictions.length > 0 ? restrictions.join(", ") : "None"}
 Meals they already have: ${existingMeals.length > 0 ? existingMeals.join(", ") : "None yet"}
 
-Suggest 6 varied ${typeLabel.toLowerCase()} options that are different from what they already have.
+Suggest 4 varied ${typeLabel.toLowerCase()} options that are different from what they already have.
 
 Respond ONLY with a valid JSON array (no markdown, no explanation):
 [
@@ -27,7 +27,7 @@ Respond ONLY with a valid JSON array (no markdown, no explanation):
     "name": "Meal Name",
     "description": "Brief appetizing description in 1-2 sentences",
     "ingredients": ["1 cup ingredient", "2 tbsp ingredient"],
-    "instructions": ["Step 1: Do this first.", "Step 2: Then do this.", "Step 3: Serve and enjoy."],
+    "instructions": ["Step 1: Do this.", "Step 2: Do that.", "Step 3: Serve."],
     "prep_time_minutes": 20,
     "tags": ["tag1", "tag2"],
     "meal_type": "${mealType}",
@@ -37,12 +37,12 @@ Respond ONLY with a valid JSON array (no markdown, no explanation):
 
 meal_type must be exactly: "${mealType}"
 ingredients should include quantities (e.g. "2 cloves garlic")
-instructions should be 4-8 clear steps from prep to serving
+instructions should be 3-5 concise steps from prep to serving
 Make meals realistic, delicious, and varied. Tailor to preferences and avoid restrictions.`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [
       {
         role: "user",
