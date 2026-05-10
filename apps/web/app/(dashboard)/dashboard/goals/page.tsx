@@ -47,17 +47,20 @@ export default function GoalsPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
-      if (!profile?.household_id) return;
-      setHouseholdId(profile.household_id);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+        const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+        if (!profile?.household_id) return;
+        setHouseholdId(profile.household_id);
 
-      const { data: goalsData } = await supabase.from("goals").select("*, goal_milestones(*)").eq("household_id", profile.household_id).order("created_at", { ascending: false });
-      setGoals((goalsData || []).map((g) => ({ ...g, milestones: g.goal_milestones || [] })));
-      setLoading(false);
+        const { data: goalsData } = await supabase.from("goals").select("*, goal_milestones(*)").eq("household_id", profile.household_id).order("created_at", { ascending: false });
+        setGoals((goalsData || []).map((g) => ({ ...g, milestones: g.goal_milestones || [] })));
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);

@@ -38,16 +38,19 @@ export default function NotesPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
-      if (!profile?.household_id) return;
-      setHouseholdId(profile.household_id);
-      const { data } = await supabase.from("notes").select("*").eq("household_id", profile.household_id).order("is_pinned", { ascending: false }).order("updated_at", { ascending: false });
-      setNotes(data || []);
-      setLoading(false);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+        const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+        if (!profile?.household_id) return;
+        setHouseholdId(profile.household_id);
+        const { data } = await supabase.from("notes").select("*").eq("household_id", profile.household_id).order("is_pinned", { ascending: false }).order("updated_at", { ascending: false });
+        setNotes(data || []);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);

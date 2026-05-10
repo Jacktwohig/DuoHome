@@ -52,23 +52,26 @@ export default function ChoresPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
-      if (!profile?.household_id) return;
-      setHouseholdId(profile.household_id);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+        const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+        if (!profile?.household_id) return;
+        setHouseholdId(profile.household_id);
 
-      const [{ data: profilesData }, { data: choresData }] = await Promise.all([
-        supabase.from("profiles").select("id, display_name").eq("household_id", profile.household_id),
-        supabase.from("chores").select("*").eq("household_id", profile.household_id).order("due_date", { ascending: true, nullsFirst: false }),
-      ]);
+        const [{ data: profilesData }, { data: choresData }] = await Promise.all([
+          supabase.from("profiles").select("id, display_name").eq("household_id", profile.household_id),
+          supabase.from("chores").select("*").eq("household_id", profile.household_id).order("due_date", { ascending: true, nullsFirst: false }),
+        ]);
 
-      setMembers(profilesData || []);
-      setChores(choresData || []);
-      if (profilesData?.[0]) setNewChore((prev) => ({ ...prev, assignee: profilesData[0].id }));
-      setLoading(false);
+        setMembers(profilesData || []);
+        setChores(choresData || []);
+        if (profilesData?.[0]) setNewChore((prev) => ({ ...prev, assignee: profilesData[0].id }));
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);

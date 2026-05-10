@@ -65,16 +65,19 @@ export default function ActivitiesPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
-      if (!profile?.household_id) return;
-      setHouseholdId(profile.household_id);
-      const { data } = await supabase.from("activities").select("*").eq("household_id", profile.household_id).order("start_date", { ascending: true, nullsFirst: false });
-      setActivities(data || []);
-      setLoading(false);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+        const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+        if (!profile?.household_id) return;
+        setHouseholdId(profile.household_id);
+        const { data } = await supabase.from("activities").select("*").eq("household_id", profile.household_id).order("start_date", { ascending: true, nullsFirst: false });
+        setActivities(data || []);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);

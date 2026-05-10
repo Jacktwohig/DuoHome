@@ -42,25 +42,28 @@ export default function HabitsPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
-      if (!profile?.household_id) return;
-      setHouseholdId(profile.household_id);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+        const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+        if (!profile?.household_id) return;
+        setHouseholdId(profile.household_id);
 
-      const [{ data: profilesData }, { data: habitsData }, { data: logsData }] = await Promise.all([
-        supabase.from("profiles").select("id, display_name").eq("household_id", profile.household_id),
-        supabase.from("habits").select("*").eq("household_id", profile.household_id).order("created_at", { ascending: true }),
-        supabase.from("habit_logs").select("habit_id, completed_date, completed_by").gte("completed_date", last35Days[0]),
-      ]);
+        const [{ data: profilesData }, { data: habitsData }, { data: logsData }] = await Promise.all([
+          supabase.from("profiles").select("id, display_name").eq("household_id", profile.household_id),
+          supabase.from("habits").select("*").eq("household_id", profile.household_id).order("created_at", { ascending: true }),
+          supabase.from("habit_logs").select("habit_id, completed_date, completed_by").gte("completed_date", last35Days[0]),
+        ]);
 
-      setMembers(profilesData || []);
-      setHabits(habitsData || []);
-      setLogs(logsData || []);
-      if (profilesData?.[0]) setNewHabit((prev) => ({ ...prev, assignee: profilesData[0].id }));
-      setLoading(false);
+        setMembers(profilesData || []);
+        setHabits(habitsData || []);
+        setLogs(logsData || []);
+        if (profilesData?.[0]) setNewHabit((prev) => ({ ...prev, assignee: profilesData[0].id }));
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);

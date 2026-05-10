@@ -27,16 +27,19 @@ export default function CalendarPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
-      if (!profile?.household_id) return;
-      setHouseholdId(profile.household_id);
-      const { data } = await supabase.from("calendar_events").select("*").eq("household_id", profile.household_id).order("start_at", { ascending: true });
-      setEvents(data || []);
-      setLoading(false);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+        const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+        if (!profile?.household_id) return;
+        setHouseholdId(profile.household_id);
+        const { data } = await supabase.from("calendar_events").select("*").eq("household_id", profile.household_id).order("start_at", { ascending: true });
+        setEvents(data || []);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
