@@ -4,12 +4,11 @@
   "workspaces": ["apps/web", "packages/*"],
   "packageManager": "npm@10.8.2",
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "lint": "turbo lint"
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web"
   },
   "devDependencies": {
-    "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   }
 }
