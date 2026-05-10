@@ -4,7 +4,6 @@ const nextConfig: NextConfig = {
   images: {
     domains: ["images.unsplash.com", "lh3.googleusercontent.com"],
   },
-  transpilePackages: ["@duohome/types"],
   typescript: {
     ignoreBuildErrors: true,
   },

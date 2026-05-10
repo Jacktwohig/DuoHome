@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select } from "@/components/ui/input";
-import type { MealSuggestion } from "@duohome/types";
+import type { MealSuggestion } from "@/types";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner"] as const;

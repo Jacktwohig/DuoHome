@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { MealSuggestion } from "@duohome/types";
+import type { MealSuggestion } from "@/types";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
