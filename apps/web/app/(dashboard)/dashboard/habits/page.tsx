@@ -94,23 +94,25 @@ export default function HabitsPage() {
     return streak;
   }
 
-  async function toggleToday(habit: Habit) {
+  async function toggleDay(habit: Habit, date: string) {
     if (!userId) { setToggleError("Not signed in."); return; }
     setToggleError(null);
     setTogglingId(habit.id);
     const supabase = createClient();
-    const done = isCompletedToday(habit.id);
+    const done = isCompletedOn(habit.id, date);
     if (done) {
-      const { error } = await supabase.from("habit_logs").delete().eq("habit_id", habit.id).eq("completed_date", today).eq("completed_by", userId);
+      const { error } = await supabase.from("habit_logs").delete().eq("habit_id", habit.id).eq("completed_date", date).eq("completed_by", userId);
       if (error) { setToggleError(error.message); }
-      else { setLogs((prev) => prev.filter((l) => !(l.habit_id === habit.id && l.completed_date === today))); }
+      else { setLogs((prev) => prev.filter((l) => !(l.habit_id === habit.id && l.completed_date === date))); }
     } else {
-      const { data, error } = await supabase.from("habit_logs").insert({ habit_id: habit.id, completed_by: userId, completed_date: today, count: 1 }).select().single();
+      const { data, error } = await supabase.from("habit_logs").insert({ habit_id: habit.id, completed_by: userId, completed_date: date, count: 1 }).select().single();
       if (error) { setToggleError(error.message); }
       else if (data) { setLogs((prev) => [...prev, data]); }
     }
     setTogglingId(null);
   }
+
+  const toggleToday = (habit: Habit) => toggleDay(habit, today);
 
   async function addHabit() {
     setSaveError(null);
@@ -263,11 +265,18 @@ export default function HabitsPage() {
                         {weekDays.map((d) => {
                           const dateStr = format(d, "yyyy-MM-dd");
                           const completed = isCompletedOn(habit.id, dateStr);
+                          const isFuture = dateStr > today;
+                          const isToggling = togglingId === habit.id;
                           return (
                             <td key={dateStr} className="py-2 text-center">
-                              <div className="h-6 w-6 rounded-full mx-auto flex items-center justify-center" style={completed ? { backgroundColor: habit.color + "30" } : { backgroundColor: "#F3F4F6" }}>
+                              <button
+                                onClick={() => !isFuture && toggleDay(habit, dateStr)}
+                                disabled={isFuture || isToggling}
+                                className={`h-7 w-7 rounded-full mx-auto flex items-center justify-center transition-all ${isFuture ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:opacity-75"}`}
+                                style={completed ? { backgroundColor: habit.color + "30" } : { backgroundColor: "#F3F4F6" }}
+                              >
                                 {completed && <div className="h-3 w-3 rounded-full" style={{ backgroundColor: habit.color }} />}
-                              </div>
+                              </button>
                             </td>
                           );
                         })}
