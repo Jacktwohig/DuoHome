@@ -35,6 +35,8 @@ export default function HabitsPage() {
   const [showAddHabit, setShowAddHabit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [newHabit, setNewHabit] = useState({ title: "", description: "", assignee: "", frequency: "daily", icon: "💪", color: "#06B6D4" });
 
   const today = format(new Date(), "yyyy-MM-dd");
@@ -93,16 +95,21 @@ export default function HabitsPage() {
   }
 
   async function toggleToday(habit: Habit) {
-    if (!userId) return;
+    if (!userId) { setToggleError("Not signed in."); return; }
+    setToggleError(null);
+    setTogglingId(habit.id);
     const supabase = createClient();
     const done = isCompletedToday(habit.id);
     if (done) {
-      await supabase.from("habit_logs").delete().eq("habit_id", habit.id).eq("completed_date", today).eq("completed_by", userId);
-      setLogs((prev) => prev.filter((l) => !(l.habit_id === habit.id && l.completed_date === today)));
+      const { error } = await supabase.from("habit_logs").delete().eq("habit_id", habit.id).eq("completed_date", today).eq("completed_by", userId);
+      if (error) { setToggleError(error.message); }
+      else { setLogs((prev) => prev.filter((l) => !(l.habit_id === habit.id && l.completed_date === today))); }
     } else {
-      const { data } = await supabase.from("habit_logs").insert({ habit_id: habit.id, completed_by: userId, completed_date: today, count: 1 }).select().single();
-      if (data) setLogs((prev) => [...prev, data]);
+      const { data, error } = await supabase.from("habit_logs").insert({ habit_id: habit.id, completed_by: userId, completed_date: today, count: 1 }).select().single();
+      if (error) { setToggleError(error.message); }
+      else if (data) { setLogs((prev) => [...prev, data]); }
     }
+    setTogglingId(null);
   }
 
   async function addHabit() {
@@ -188,17 +195,20 @@ export default function HabitsPage() {
         <>
           <div>
             <h3 className="text-base font-semibold text-[#1C1917] mb-4">Today&apos;s Habits</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {toggleError && <p className="text-sm text-red-500 mb-2">{toggleError}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {habits.map((habit, i) => {
                 const done = isCompletedToday(habit.id);
                 const streak = getStreak(habit.id);
+                const isToggling = togglingId === habit.id;
                 return (
                   <motion.div key={habit.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                     <Card className={`transition-all group ${done ? "bg-gray-50" : ""}`}>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => toggleToday(habit)}
-                          className="h-12 w-12 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                          disabled={isToggling}
+                          className="h-12 w-12 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-60"
                           style={done ? { backgroundColor: habit.color, borderColor: habit.color } : { borderColor: habit.color }}
                         >
                           {done ? <Check className="h-5 w-5 text-white" /> : <span className="text-xl">{habit.icon}</span>}
