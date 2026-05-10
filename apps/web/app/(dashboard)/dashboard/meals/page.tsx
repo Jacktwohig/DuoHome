@@ -105,6 +105,8 @@ export default function MealsPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<MealSuggestion[]>([]);
   const [newGrocery, setNewGrocery] = useState("");
+  const [groceryError, setGroceryError] = useState<string | null>(null);
+  const [generatingGroceries, setGeneratingGroceries] = useState(false);
   const [newMeal, setNewMeal] = useState({ name: "", day: "Mon", type: "Dinner", servings: "2", prepTime: "" });
 
   const weekLabel = `Week of ${format(startOfWeek(new Date(), { weekStartsOn: 1 }), "MMM d")}–${format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6), "MMM d, yyyy")}`;
@@ -315,15 +317,68 @@ export default function MealsPage() {
   }
 
   async function addGroceryItem() {
-    if (!newGrocery.trim() || !householdId || !userId) return;
+    setGroceryError(null);
+    if (!newGrocery.trim()) return;
+    if (!householdId || !userId) { setGroceryError("No household found."); return; }
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("grocery_items")
       .insert({ household_id: householdId, name: newGrocery, added_by: userId, is_checked: false })
       .select()
       .single();
+    if (error) { setGroceryError(error.message); return; }
     if (data) setGroceryItems((prev) => [...prev, data]);
     setNewGrocery("");
+  }
+
+  function ingredientKey(str: string): string {
+    return str
+      .toLowerCase()
+      .replace(/^[\d\s\/\-\.¼½¾⅓⅔⅛]+/, "")
+      .replace(/^(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|grams?|g|kg|ml|l|cloves?|bunches?|cans?|pieces?|slices?|medium|large|small|whole|handful|pinch|dash|sprigs?)\s+/gi, "")
+      .trim();
+  }
+
+  async function generateGroceryList() {
+    if (!householdId || !userId) return;
+    const mealsWithIngredients = meals.filter((m) => m.ingredients?.items?.length);
+    if (!mealsWithIngredients.length) return;
+
+    setGeneratingGroceries(true);
+    setGroceryError(null);
+
+    // Collect all ingredients grouped by their base name
+    const grouped: Record<string, { originals: string[]; mealNames: string[] }> = {};
+    mealsWithIngredients.forEach((meal) => {
+      meal.ingredients!.items.forEach((ing) => {
+        const key = ingredientKey(ing);
+        if (!key) return;
+        if (!grouped[key]) grouped[key] = { originals: [], mealNames: [] };
+        if (!grouped[key].originals.includes(ing)) grouped[key].originals.push(ing);
+        if (!grouped[key].mealNames.includes(meal.name)) grouped[key].mealNames.push(meal.name);
+      });
+    });
+
+    const supabase = createClient();
+    // Remove existing unchecked items
+    await supabase.from("grocery_items").delete().eq("household_id", householdId).eq("is_checked", false);
+
+    // Build and insert combined items
+    const toInsert = Object.entries(grouped).map(([, { originals, mealNames }]) => ({
+      household_id: householdId,
+      name: originals.length === 1 ? originals[0] : originals.join(" + "),
+      quantity: null,
+      category: mealNames.join(", "),
+      is_checked: false,
+      added_by: userId,
+    }));
+
+    const { data, error } = await supabase.from("grocery_items").insert(toInsert).select();
+    if (error) { setGroceryError(error.message); }
+    else {
+      setGroceryItems((prev) => [...prev.filter((i) => i.is_checked), ...(data || [])]);
+    }
+    setGeneratingGroceries(false);
   }
 
   async function toggleGrocery(id: string, current: boolean) {
@@ -458,12 +513,26 @@ export default function MealsPage() {
           <Card>
             <CardHeader className="mb-5 flex-row items-center justify-between">
               <CardTitle>Grocery List</CardTitle>
-              <span className="text-xs text-[#78716C]">
-                {groceryItems.filter((i) => i.is_checked).length}/{groceryItems.length} checked
-              </span>
+              <div className="flex items-center gap-3">
+                {meals.some((m) => m.ingredients?.items?.length) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Sparkles className="h-3.5 w-3.5 text-emerald-500" />}
+                    onClick={generateGroceryList}
+                    loading={generatingGroceries}
+                    className="text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Generate from plan
+                  </Button>
+                )}
+                <span className="text-xs text-[#78716C]">
+                  {groceryItems.filter((i) => i.is_checked).length}/{groceryItems.length} checked
+                </span>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-2 mb-5">
+              <div className="flex gap-2 mb-2">
                 <input
                   value={newGrocery}
                   onChange={(e) => setNewGrocery(e.target.value)}
@@ -473,6 +542,7 @@ export default function MealsPage() {
                 />
                 <Button onClick={addGroceryItem} leftIcon={<Plus className="h-4 w-4" />}>Add</Button>
               </div>
+              {groceryError && <p className="text-xs text-red-500 mb-3">{groceryError}</p>}
               {groceryItems.length === 0 ? (
                 <p className="text-sm text-[#78716C] text-center py-4">No grocery items yet.</p>
               ) : (
