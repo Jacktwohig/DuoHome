@@ -41,7 +41,7 @@ instructions should be 4-8 clear steps from prep to serving
 Make meals realistic, delicious, and varied. Tailor to preferences and avoid restrictions.`;
 
   const message = await anthropic.messages.create({
-    model: "claude-opus-4-5",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 2048,
     messages: [
       {
@@ -56,9 +56,13 @@ Make meals realistic, delicious, and varied. Tailor to preferences and avoid res
     throw new Error("Unexpected response type from Claude");
   }
 
-  const text = content.text.trim();
+  let text = content.text.trim();
 
-  // Parse the JSON response
+  // Strip markdown code fences if Claude wraps the JSON
+  if (text.startsWith("```")) {
+    text = text.replace(/^```[a-z]*\n?/, "").replace(/```$/, "").trim();
+  }
+
   const suggestions: MealSuggestion[] = JSON.parse(text);
 
   if (!Array.isArray(suggestions)) {

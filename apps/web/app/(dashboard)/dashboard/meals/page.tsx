@@ -241,7 +241,8 @@ export default function MealsPage() {
       });
       const data = await res.json();
       setAiSuggestions(data.suggestions || []);
-    } catch {
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to get suggestions. Please try again.");
       setAiSuggestions([]);
     } finally {
       setAiLoading(false);
