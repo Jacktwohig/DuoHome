@@ -331,12 +331,33 @@ export default function MealsPage() {
     setNewGrocery("");
   }
 
-  function ingredientKey(str: string): string {
-    return str
-      .toLowerCase()
-      .replace(/^[\d\s\/\-\.¼½¾⅓⅔⅛]+/, "")
-      .replace(/^(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|grams?|g|kg|ml|l|cloves?|bunches?|cans?|pieces?|slices?|medium|large|small|whole|handful|pinch|dash|sprigs?)\s+/gi, "")
-      .trim();
+  function parseIngredientQty(str: string): { qty: number | null; unit: string; name: string } {
+    let s = str.trim();
+    let qty: number | null = null;
+
+    const mixedFrac = s.match(/^(\d+)\s+(\d+)\/(\d+)\s*/);
+    const simpleFrac = s.match(/^(\d+)\/(\d+)\s*/);
+    const num = s.match(/^(\d+\.?\d*)\s*/);
+
+    if (mixedFrac) {
+      qty = parseInt(mixedFrac[1]) + parseInt(mixedFrac[2]) / parseInt(mixedFrac[3]);
+      s = s.slice(mixedFrac[0].length);
+    } else if (simpleFrac) {
+      qty = parseInt(simpleFrac[1]) / parseInt(simpleFrac[2]);
+      s = s.slice(simpleFrac[0].length);
+    } else if (num) {
+      qty = parseFloat(num[1]);
+      s = s.slice(num[0].length);
+    }
+
+    const unitMatch = s.match(/^(cups?|tbsps?|tsps?|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|kg|ml|l|cloves?|bunches?|cans?|pieces?|slices?|medium|large|small|whole|handful|pinch|dash|sprigs?)\s*/i);
+    let unit = "";
+    if (unitMatch) {
+      unit = unitMatch[1].toLowerCase().replace(/s$/, "").replace(/tablespoon/, "tbsp").replace(/teaspoon/, "tsp").replace(/ounce/, "oz").replace(/pound/, "lb");
+      s = s.slice(unitMatch[0].length);
+    }
+
+    return { qty, unit, name: s.trim().toLowerCase() };
   }
 
   async function generateGroceryList() {
@@ -347,37 +368,45 @@ export default function MealsPage() {
     setGeneratingGroceries(true);
     setGroceryError(null);
 
-    // Collect all ingredients grouped by their base name
-    const grouped: Record<string, { originals: string[]; mealNames: string[] }> = {};
+    const grouped: Record<string, { totalQty: number | null; unit: string; name: string }> = {};
+
     mealsWithIngredients.forEach((meal) => {
       meal.ingredients!.items.forEach((ing) => {
-        const key = ingredientKey(ing);
-        if (!key) return;
-        if (!grouped[key]) grouped[key] = { originals: [], mealNames: [] };
-        if (!grouped[key].originals.includes(ing)) grouped[key].originals.push(ing);
-        if (!grouped[key].mealNames.includes(meal.name)) grouped[key].mealNames.push(meal.name);
+        const { qty, unit, name } = parseIngredientQty(ing);
+        if (!name) return;
+        const key = `${unit}|${name}`;
+        if (!grouped[key]) {
+          grouped[key] = { totalQty: qty, unit, name };
+        } else if (qty !== null && grouped[key].totalQty !== null) {
+          grouped[key].totalQty! += qty;
+        } else if (qty !== null) {
+          grouped[key].totalQty = qty;
+        }
       });
     });
 
     const supabase = createClient();
-    // Remove existing unchecked items
     await supabase.from("grocery_items").delete().eq("household_id", householdId).eq("is_checked", false);
 
-    // Build and insert combined items
-    const toInsert = Object.entries(grouped).map(([, { originals, mealNames }]) => ({
-      household_id: householdId,
-      name: originals.length === 1 ? originals[0] : originals.join(" + "),
-      quantity: null,
-      category: mealNames.join(", "),
-      is_checked: false,
-      added_by: userId,
-    }));
+    const toInsert = Object.values(grouped).map(({ totalQty, unit, name }) => {
+      let displayName = name;
+      if (totalQty !== null) {
+        const qtyStr = String(Math.ceil(totalQty));
+        displayName = unit ? `${qtyStr} ${unit} ${name}` : `${qtyStr} ${name}`;
+      }
+      return {
+        household_id: householdId,
+        name: displayName,
+        quantity: null,
+        category: null,
+        is_checked: false,
+        added_by: userId,
+      };
+    });
 
     const { data, error } = await supabase.from("grocery_items").insert(toInsert).select();
     if (error) { setGroceryError(error.message); }
-    else {
-      setGroceryItems((prev) => [...prev.filter((i) => i.is_checked), ...(data || [])]);
-    }
+    else { setGroceryItems((prev) => [...prev.filter((i) => i.is_checked), ...(data || [])]); }
     setGeneratingGroceries(false);
   }
 
@@ -392,13 +421,6 @@ export default function MealsPage() {
     await supabase.from("grocery_items").delete().eq("id", id);
     setGroceryItems((prev) => prev.filter((item) => item.id !== id));
   }
-
-  const groceryByCategory = groceryItems.reduce((acc, item) => {
-    const cat = item.category || "Other";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(item);
-    return acc;
-  }, {} as Record<string, GroceryItem[]>);
 
   const sortedHistoryWeeks = Object.keys(historyMeals).sort((a, b) => b.localeCompare(a));
 
@@ -546,39 +568,31 @@ export default function MealsPage() {
               {groceryItems.length === 0 ? (
                 <p className="text-sm text-[#78716C] text-center py-4">No grocery items yet.</p>
               ) : (
-                <div className="space-y-5">
-                  {Object.entries(groceryByCategory).map(([category, items]) => (
-                    <div key={category}>
-                      <h4 className="text-xs font-semibold text-[#78716C] uppercase tracking-wider mb-2">{category}</h4>
-                      <div className="space-y-1.5">
-                        {items.map((item) => (
-                          <motion.div
-                            key={item.id}
-                            layout
-                            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
-                          >
-                            <button
-                              onClick={() => toggleGrocery(item.id, item.is_checked)}
-                              className={`h-5 w-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
-                                item.is_checked ? "border-emerald-500 bg-emerald-500" : "border-gray-300 hover:border-emerald-400"
-                              }`}
-                            >
-                              {item.is_checked && <Check className="h-3 w-3 text-white" />}
-                            </button>
-                            <span className={`flex-1 text-sm ${item.is_checked ? "line-through text-[#78716C]" : "text-[#1C1917]"}`}>
-                              {item.name}
-                            </span>
-                            {item.quantity && <span className="text-xs text-[#78716C]">{item.quantity}</span>}
-                            <button
-                              onClick={() => deleteGroceryItem(item.id)}
-                              className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
+                <div className="space-y-1.5">
+                  {groceryItems.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
+                    >
+                      <button
+                        onClick={() => toggleGrocery(item.id, item.is_checked)}
+                        className={`h-5 w-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                          item.is_checked ? "border-emerald-500 bg-emerald-500" : "border-gray-300 hover:border-emerald-400"
+                        }`}
+                      >
+                        {item.is_checked && <Check className="h-3 w-3 text-white" />}
+                      </button>
+                      <span className={`flex-1 text-sm capitalize ${item.is_checked ? "line-through text-[#78716C]" : "text-[#1C1917]"}`}>
+                        {item.name}
+                      </span>
+                      <button
+                        onClick={() => deleteGroceryItem(item.id)}
+                        className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </motion.div>
                   ))}
                 </div>
               )}
